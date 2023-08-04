@@ -5,12 +5,10 @@ import cats.effect.{ExitCode, IO, IOApp}
 import cats.{Applicative, MonadThrow}
 import io.circe.{Decoder, Encoder}
 
-import scala.deriving.Mirror
 import cats.syntax.functor.*
 import cats.syntax.applicative.*
 import cats.syntax.apply.*
 import cats.syntax.traverse.*
-import talks.routine._3.{Action, ActionType, Field, FieldType, Form, LKey, Lang, Localizer, localizeForm}
 
 import java.time.LocalDate
 
