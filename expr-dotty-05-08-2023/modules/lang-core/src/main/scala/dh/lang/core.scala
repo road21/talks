@@ -16,31 +16,31 @@ object core:
     given Ordering[RedYellowGreen] = Ordering.by(_.ordinal)
 
   // calc types
-  sealed trait CalcType:
+  sealed trait LType:
     type Repr
 
-  case object TBool extends CalcType:
+  case object TBool extends LType:
     override type Repr = Boolean
 
-  case object TStr extends CalcType:
+  case object TStr extends LType:
     override type Repr = String
 
-  case object TDecimal extends CalcType:
+  case object TDecimal extends LType:
     override type Repr = BigDecimal
 
-  case object TRYG extends CalcType:
+  case object TRYG extends LType:
     override type Repr = RedYellowGreen
 
-  case object TDate extends CalcType:
+  case object TDate extends LType:
     override type Repr = LocalDate
     
-  case object TDateTime extends CalcType:
+  case object TDateTime extends LType:
     override type Repr = ZonedDateTime
 
   type AnyCalc = TBool.Repr | TStr.Repr | TDecimal.Repr | TRYG.Repr | TDate.Repr | TDateTime.Repr
 
-  object CalcType:
-    type WithRepr[R] = CalcType { type Repr = R }
+  object LType:
+    type WithRepr[R] = LType { type Repr = R }
 
   // context
   case class Arguments(calc: Map[String, AnyCalc])
@@ -49,3 +49,11 @@ object core:
 
   def calc[Type <: AnyCalc](id: String)(using Arguments): Type =
     summon[Arguments].calc(id).asInstanceOf[Type]
+
+  given Ordering[LocalDate] with
+    def compare(x: LocalDate, y: LocalDate): Int =
+      x.compareTo(y)
+
+  given Ordering[ZonedDateTime] with
+    def compare(x: ZonedDateTime, y: ZonedDateTime): Int =
+      x.compareTo(y)

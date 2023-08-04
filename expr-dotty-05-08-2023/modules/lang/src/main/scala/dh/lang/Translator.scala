@@ -6,33 +6,33 @@ import dotty.tools.dotc.core.Names
 import dotty.tools.dotc.core.Constants.Constant as DConstant
 import dotty.tools.dotc.util.{SourceFile, Spans}
 import dotty.tools.dotc.ast.untpd.{Apply, Ident, InfixOp, Literal, Select, TypeApply}
-import dh.lang.core.{CalcType, TBool, TDate, TDateTime, TDecimal, TRYG, TStr}
+import dh.lang.core.{LType, TBool, TDate, TDateTime, TDecimal, TRYG, TStr}
 
 object Translator:
   val dummySpan = Spans.Span(0)
 
-  def apply(term: Term)(using SourceFile): Tree[Untyped] =
+  def apply(term: LTree)(using SourceFile): Tree[Untyped] =
     translate(term)
 
   // TODO: make it stack safe
-  def translate(term: Term)(using SourceFile): Tree[Untyped] =
+  def translate(term: LTree)(using SourceFile): Tree[Untyped] =
     term match {
-      case Term.Literal(c) => constant(c)
-      case Term.Ident(n)   => Ident(Names.termName(n))
-      case Term.InfixOp(l, i, r) =>
+      case LTree.Literal(c) => constant(c)
+      case LTree.Ident(n)   => Ident(Names.termName(n))
+      case LTree.InfixOp(l, i, r) =>
         InfixOp(translate(l), ident(i), translate(r))
-      case Term.Apply(l, r) =>
+      case LTree.Apply(l, r) =>
         Apply(translate(l), r.map(translate).toList)
-      case Term.Select(q, n) =>
+      case LTree.Select(q, n) =>
         Select(translate(q), Names.termName(n))
-      case Term.Calculation(u, t) =>
+      case LTree.Calculation(u, t) =>
         Apply(
           TypeApply(Ident("calc".mkTermName), List(translateType(t))),
           List(constant(Constant.PString(u)))
         )
     }
 
-  def translateType(t: CalcType)(using SourceFile): untpd.Tree = {
+  def translateType(t: LType)(using SourceFile): untpd.Tree = {
     val typeName = t match
       case TDecimal  => "BigDecimal"
       case TBool     => "Boolean"
@@ -44,7 +44,7 @@ object Translator:
     Ident(typeName.mkTypeName)
   }
 
-  def ident(ident: Term.Ident)(using SourceFile): Ident =
+  def ident(ident: LTree.Ident)(using SourceFile): Ident =
     Ident(Names.termName(ident.name))
 
   def constant(cnst: Constant)(using SourceFile): Tree[Untyped] =

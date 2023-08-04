@@ -20,7 +20,7 @@ import dotty.tools.unsupported
 import dotty.tools.dotc.typer.ImportInfo.*
 import dotty.tools.dotc.util.Spans
 import dh.lang.LTranslator.{calcCls, funcName}
-import dh.lang.core.{Arguments, CalcType}
+import dh.lang.core.{Arguments, LType}
 import dotty.tools.MainGenericRunner.classpathSeparator
 import dotty.tools.dotc.core.Flags.SyntheticTermParam
 import dotty.tools.dotc.reporting.{Message, MessageKind as DottyMsgKind}
@@ -36,7 +36,7 @@ import dotty.tools.dotc.reporting.ConsoleReporter
 
 import java.lang.reflect.InvocationTargetException
 
-class LCompiler(term: Term, outputType: CalcType) extends Compiler:
+class LCompiler(term: LTree, outputType: LType) extends Compiler:
   override protected def frontendPhases: List[List[Phase]] =
     List(new LTranslator(term, outputType)) ::
       List(new TyperPhase) ::                   // Compiler frontend: namer, typer
@@ -96,7 +96,7 @@ object LDriver extends Driver:
           .flatten
       case None => Left(Internal(new Exception("Unable to setup context")))
 
-  private def runDir(dir: Path, outputType: CalcType, arguments: Arguments): Either[errors.Runtime, outputType.Repr] =
+  private def runDir(dir: Path, outputType: LType, arguments: Arguments): Either[errors.Runtime, outputType.Repr] =
     Try {
       val cl     = URLClassLoader(Array(dir.toUri.toURL), this.getClass.getClassLoader)
       val cls    = cl.loadClass(calcCls)
@@ -107,16 +107,16 @@ object LDriver extends Driver:
     }.toEither.left.map(errors.Runtime.apply)
 
   def compileAndRun(
-      term: Term,
-      outputType: CalcType,
-      arguments: Arguments
+                     term: LTree,
+                     outputType: LType,
+                     arguments: Arguments
   ): Either[CompileAndRunError, outputType.Repr] =
     compileAndExecute(
       LCompiler(term, outputType),
       outDir => runDir(outDir, outputType, arguments)
     )
 
-  def compile(term: Term, outputType: CalcType): Either[CompileError, ByteCode] =
+  def compile(term: LTree, outputType: LType): Either[CompileError, ByteCode] =
     compileAndExecute(
       LCompiler(term, outputType),
       outDir =>
@@ -125,7 +125,7 @@ object LDriver extends Driver:
         Right(ByteCode(classByteCode, objectByteCode))
     )
 
-  def run(code: ByteCode, outputType: CalcType, arguments: Arguments): Either[RunError, outputType.Repr] =
+  def run(code: ByteCode, outputType: LType, arguments: Arguments): Either[RunError, outputType.Repr] =
     Try {
       val tmpDir        = Files.createTempDirectory("run-expression")
       val calcClassFile = tmpDir.resolve(s"${LTranslator.calcCls}.class")
@@ -140,7 +140,7 @@ object LDriver extends Driver:
     }.toEither.left.map(Internal.apply).flatten
 
 // TODO: put term to custom context
-class LTranslator(term: Term, outputType: CalcType) extends Phase:
+class LTranslator(term: LTree, outputType: LType) extends Phase:
   override def phaseName: String    = LTranslator.name
   override def description: String  = LTranslator.description
   override def isCheckable: Boolean = false
@@ -196,6 +196,12 @@ class LTranslator(term: Term, outputType: CalcType) extends Phase:
             List(
               ImportSelector(Ident("LocalDate".mkTermName), empty, empty),
               ImportSelector(Ident("ZonedDateTime".mkTermName), empty, empty)
+            )
+          ),
+          Import(
+            Select(Select(Ident("math".mkTermName), "Ordering".mkTermName), "Implicits".mkTermName),
+            List(
+              ImportSelector(Ident("infixOrderingOps".mkTermName), empty, empty)
             )
           ),
           ModuleDef(calcMod, Template(init, List(), List(), self, mainM :: Nil))

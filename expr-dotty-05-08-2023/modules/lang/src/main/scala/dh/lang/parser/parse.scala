@@ -8,8 +8,8 @@ import cats.parse.{Numbers, Parser, Parser0, Rfc5234}
 import dh.lang.data.Identifier
 import dh.lang.data.Identifier.*
 import dh.lang.parser.parse.Fragment.*
-import dh.lang.Term
-import dh.lang.Term.*
+import dh.lang.LTree
+import dh.lang.LTree.*
 import dh.lang.Constant.*
 import scala.util.Try
 import ParserOps.*
@@ -32,7 +32,7 @@ object parse:
 
   val const = bool | str | decimal
 
-  val ident = identifier.map(Identifier.apply).map(Term.Ident.apply)
+  val ident = identifier.map(Identifier.apply).map(LTree.Ident.apply)
 
   val simpleTerm = const | ident
 
@@ -60,12 +60,12 @@ object parse:
 
   enum Fragment:
     case SelectFragment(identifier: String)
-    case ApplyFragment(arguments: List[Term])
-    case InfixOpFragment(op: String, term: Term)
+    case ApplyFragment(arguments: List[LTree])
+    case InfixOpFragment(op: String, term: LTree)
 
   type FragPars = Parser[Fragment]
 
-  def fragmentsToTerm(t: Term, fs: List[Fragment]): Term =
+  def fragmentsToTerm(t: LTree, fs: List[Fragment]): LTree =
     fs.foldLeft(t)((acc, t) =>
       t match
         case SelectFragment(i)      => Select(acc, i.mkIdent)
@@ -73,7 +73,7 @@ object parse:
         case InfixOpFragment(op, t) => InfixOp(acc, Ident(op.mkIdent), t)
     )
 
-  val term: Parser[Term] = Parser.recursive(term =>
+  val term: Parser[LTree] = Parser.recursive(term =>
     val bracketTerm = char('(') *> term.sp <* char(')').sp
 
     val selectFrag: FragPars = (char('.').sp *> identifier.sp).map(SelectFragment.apply)
@@ -84,9 +84,9 @@ object parse:
     val noOpTerm = (termBr ~ (selectFrag | applyFrag).sp.rep0).map(fragmentsToTerm)
 
     val infix =
-      (t: Parser[Term], op: Parser[String]) => (t ~ (op ~ t).map(InfixOpFragment.apply).rep0).map(fragmentsToTerm)
+      (t: Parser[LTree], op: Parser[String]) => (t ~ (op ~ t).map(InfixOpFragment.apply).rep0).map(fragmentsToTerm)
 
     opPrec.foldLeft(infix(noOpTerm, otherOps))(infix)
   )
 
-  def apply(expr: String): Either[Parser.Error, Term] = term.parseAll(expr)
+  def apply(expr: String): Either[Parser.Error, LTree] = term.parseAll(expr)
