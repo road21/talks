@@ -7,7 +7,6 @@ target
 metals.sbt
 *.code-workspace
 .vscode
-*.sc
 .logs
 ./logback.groovy
 test.env
